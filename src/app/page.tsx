@@ -15,6 +15,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -126,6 +127,12 @@ function generateMockData(query: string): MockData {
   };
 }
 
+const MOCK_REWARD_PLANS = [
+  { id: "1024", name: "六一拉新大促发奖", expireTime: "2026-06-01" },
+  { id: "1025", name: "亲子游召回礼包", expireTime: "2026-06-15" },
+  { id: "1026", name: "端午出行补贴", expireTime: "2026-06-10" },
+];
+
 const getConditionOptions = (key: string) => {
   switch (key) {
     case "性别": return ["不限", "男性", "女性"];
@@ -173,10 +180,12 @@ export default function NL2AudiencePage() {
   // 模块 4：导出状态
   const [audienceName, setAudienceName] = useState("");
   const [targetSystems, setTargetSystems] = useState<string[]>(["发奖计划"]);
+  const [selectedRewardPlan, setSelectedRewardPlan] = useState<typeof MOCK_REWARD_PLANS[0] | null>(null);
   const [marketingValidity, setMarketingValidity] = useState("永久有效");
   const [customDateRange, setCustomDateRange] = useState<Date | undefined>(new Date());
   const [rewardValidityType, setRewardValidityType] = useState("自定义");
   const [marketingCustomDateRange, setMarketingCustomDateRange] = useState<Date | undefined>(new Date());
+  const [isFinishDialogOpen, setIsFinishDialogOpen] = useState(false);
 
   // --- Handlers ---
   const handleParse = () => {
@@ -241,6 +250,8 @@ export default function NL2AudiencePage() {
     setProfiles([]);
     setStrictness([85]);
     setTargetSystems(["发奖计划"]);
+    setSelectedRewardPlan(null);
+    setRewardValidityType("自定义");
   };
 
   const handleBack = () => {
@@ -398,7 +409,16 @@ export default function NL2AudiencePage() {
                             <span className="font-medium">{cond.value}</span>
                           )}
                           {step === "tweaking" && (
-                            <X className="w-3 h-3 ml-1 cursor-pointer hover:text-red-500" onClick={() => handleRemoveCondition(cond.id)} />
+                            <div 
+                              className="flex items-center justify-center w-4 h-4 ml-1 rounded-full hover:bg-red-100 cursor-pointer pointer-events-auto"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleRemoveCondition(cond.id);
+                              }}
+                            >
+                              <X className="w-3 h-3 text-slate-400 hover:text-red-500" />
+                            </div>
                           )}
                         </Badge>
                       ))}
@@ -574,7 +594,16 @@ export default function NL2AudiencePage() {
                             {profile.description}
                           </p>
                           <div className="flex justify-end gap-2 pt-2">
-                            <Button variant="outline" size="sm" className="h-8 gap-1 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 gap-1 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
+                              onClick={() => {
+                                toast("感谢反馈，我们将会基于用户的反馈持续训练并优化召回模型", {
+                                  position: "top-center"
+                                });
+                              }}
+                            >
                               <ThumbsUp className="w-3 h-3" /> 精准
                             </Button>
                             <Button 
@@ -648,30 +677,62 @@ export default function NL2AudiencePage() {
                     {targetSystems.includes("发奖计划") && (
                       <div className="space-y-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-md border animate-in slide-in-from-top-2">
                         <div className="space-y-1">
-                          <label className="text-xs font-medium text-slate-500">生效的发奖计划 (支持多选)</label>
+                          <label className="text-xs font-medium text-slate-500">生效的发奖计划 (单选)</label>
                           <div className="flex flex-col gap-2">
                             <div className="min-h-10 p-1.5 border rounded-md bg-white dark:bg-slate-950 flex flex-wrap gap-1.5 items-center">
                               {/* 已选发奖计划回显 */}
-                              <Badge variant="secondary" className="h-6 flex items-center gap-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200">
-                                <span className="text-[10px] opacity-70">ID:1024</span>
-                                六一拉新大促发奖
-                                {step !== "done" && <X className="w-3 h-3 ml-0.5 cursor-pointer" />}
-                              </Badge>
-                              <Badge variant="secondary" className="h-6 flex items-center gap-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200">
-                                <span className="text-[10px] opacity-70">ID:1025</span>
-                                亲子游召回礼包
-                                {step !== "done" && <X className="w-3 h-3 ml-0.5 cursor-pointer" />}
-                              </Badge>
-                              {/* 模拟输入光标 */}
-                              {step !== "done" && (
-                                <input 
-                                  className="flex-1 min-w-[120px] outline-none text-sm bg-transparent px-1 placeholder:text-slate-400" 
-                                  placeholder="搜索计划 ID 或名称..."
-                                />
+                              {selectedRewardPlan ? (
+                                <Badge variant="secondary" className="h-6 flex items-center gap-1 bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200">
+                                  <span className="text-[10px] opacity-70">ID:{selectedRewardPlan.id}</span>
+                                  {selectedRewardPlan.name}
+                                  <span className="text-[10px] ml-1 opacity-70">({selectedRewardPlan.expireTime} 到期)</span>
+                                  {step !== "done" && (
+                                    <div 
+                                      className="flex items-center justify-center w-4 h-4 ml-0.5 rounded-full hover:bg-blue-200 cursor-pointer pointer-events-auto"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setSelectedRewardPlan(null);
+                                      }}
+                                    >
+                                      <X className="w-3 h-3 text-blue-700 hover:text-blue-900" />
+                                    </div>
+                                  )}
+                                </Badge>
+                              ) : (
+                                step !== "done" && (
+                                  <DropdownMenu>
+                                     <DropdownMenuTrigger>
+                                       <input 
+                                         className="flex-1 min-w-[120px] outline-none text-sm bg-transparent px-1 placeholder:text-slate-400 cursor-pointer pointer-events-none" 
+                                         placeholder="点击选择发奖计划..."
+                                         readOnly
+                                       />
+                                     </DropdownMenuTrigger>
+                                     <DropdownMenuContent align="start" className="w-[300px]">
+                                      {MOCK_REWARD_PLANS.map(plan => (
+                                        <DropdownMenuItem 
+                                          key={plan.id} 
+                                          onClick={() => {
+                                            setSelectedRewardPlan(plan);
+                                            setRewardValidityType("与发奖计划对齐");
+                                          }}
+                                          className="flex flex-col items-start py-2 cursor-pointer"
+                                        >
+                                          <div className="flex items-center gap-2 w-full">
+                                            <span className="text-xs text-slate-400">ID:{plan.id}</span>
+                                            <span className="font-medium text-sm flex-1">{plan.name}</span>
+                                          </div>
+                                          <span className="text-[10px] text-slate-500 mt-1">有效期至: {plan.expireTime}</span>
+                                        </DropdownMenuItem>
+                                      ))}
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                )
                               )}
                             </div>
-                            {step !== "done" && (
-                              <p className="text-[10px] text-slate-400">输入关键词或ID从系统中拉取匹配项进行关联</p>
+                            {step !== "done" && !selectedRewardPlan && (
+                              <p className="text-[10px] text-slate-400">请选择一个目标发奖计划进行关联</p>
                             )}
                           </div>
                         </div>
@@ -683,6 +744,9 @@ export default function NL2AudiencePage() {
                                 <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{rewardValidityType}</span>
                                 {rewardValidityType === "自定义" && customDateRange && (
                                   <span className="text-xs text-slate-500">({format(customDateRange, "yyyy-MM-dd", { locale: zhCN })})</span>
+                                )}
+                                {rewardValidityType === "与发奖计划对齐" && selectedRewardPlan && (
+                                  <span className="text-xs text-blue-600 font-medium">({selectedRewardPlan.expireTime})</span>
                                 )}
                               </div>
                             ) : (
@@ -716,6 +780,9 @@ export default function NL2AudiencePage() {
                                       />
                                     </PopoverContent>
                                   </Popover>
+                                )}
+                                {rewardValidityType === "与发奖计划对齐" && selectedRewardPlan && (
+                                  <span className="text-xs text-blue-600 font-medium animate-in fade-in zoom-in h-6 flex items-center bg-blue-50 px-2 rounded-md border border-blue-100">联动至: {selectedRewardPlan.expireTime}</span>
                                 )}
                               </div>
                             )}
@@ -781,18 +848,29 @@ export default function NL2AudiencePage() {
                 {step === "export" && (
                   <CardFooter className="flex-row gap-4">
                     <Button variant="outline" className="flex-1" onClick={handleBack}>返回上一步</Button>
-                    <Button className="flex-[2] gap-2 bg-green-600 hover:bg-green-700 text-white" onClick={handleFinish}>
-                      <Save className="w-4 h-4" /> 保存并同步
+                    <Button 
+                      className="flex-[2] gap-2 bg-green-600 hover:bg-green-700 text-white" 
+                      onClick={() => setIsFinishDialogOpen(true)}
+                      disabled={targetSystems.includes("发奖计划") && !selectedRewardPlan}
+                    >
+                      <Save className="w-4 h-4" /> 创建并应用
                     </Button>
                   </CardFooter>
                 )}
                 {step === "done" && (
                   <CardFooter className="flex-col gap-4">
-                    <div className="w-full p-3 bg-green-50 text-green-700 rounded-lg flex items-center justify-center gap-2 text-sm font-medium">
-                      <CheckCircle2 className="w-5 h-5" />
-                      人群包已成功生成并推流！
+                    <div className="w-full p-4 bg-green-50 text-green-700 rounded-lg flex flex-col items-center justify-center gap-2 text-sm font-medium">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-5 h-5" />
+                        已提交，人群包生效后将会通过飞书消息通知您，请知悉
+                      </div>
+                      {targetSystems.includes("发奖计划") && (
+                        <Button variant="link" className="px-0 h-auto text-green-700 underline hover:text-green-800">
+                          查看人群在当前发奖计划的转化漏斗
+                        </Button>
+                      )}
                     </div>
-                    <Button variant="outline" className="w-full" onClick={handleBack}>返回上一步 (重新导出)</Button>
+                    <Button variant="outline" className="w-full" onClick={handleReset}>再创建一个人群</Button>
                   </CardFooter>
                 )}
               </Card>
@@ -814,6 +892,26 @@ export default function NL2AudiencePage() {
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmReject} className="bg-red-600 hover:bg-red-700">
               确认移除并学习
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isFinishDialogOpen} onOpenChange={setIsFinishDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认应用人群包？</AlertDialogTitle>
+            <AlertDialogDescription>
+              人群包在生效期间，会根据用户的行为序列变化，持续预测用户意图并更新人群，期间人群量级可能存在波动。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setIsFinishDialogOpen(false);
+              handleFinish();
+            }} className="bg-green-600 hover:bg-green-700">
+              确认应用
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
